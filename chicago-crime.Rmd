@@ -1,0 +1,297 @@
+---
+title: "Time Series Final Project"
+author: "Asad Adnan, Muhammad Ahmad, Brian Murphy"
+date: "2025-02-17"
+output: html_document
+---
+
+
+Crime Rate Forecasting
+
+The objective of this project is to analyze and forecast crime rates using historical crime
+data for Chicago. By applying time series forecasting methods, such as ARIMA, Seasonal ARIMA, and
+regression models, the goal is to predict future crime trends to assist law enforcement and
+policymakers in improving resource allocation and crime prevention strategies. Forecasting
+crime rates will help Chicago better prepare for high-crime periods and allocate resources to
+areas with the highest predicted need.
+
+
+# Load necessary libraries
+```{r}
+library(forecast)
+library(readxl)
+library(ggplot2)
+library(dplyr)
+library(lubridate)
+library(xgboost)
+library(prophet)
+```
+
+# Load the dataset
+```{r}
+crime_data <- read.csv("C:/Users/asada/OneDrive/Desktop/Spring 1/TSF/Final Project/Crimes_-_2001_to_Present.csv")
+
+head(crime_data)
+```
+
+# List of columns to drop
+```{r}
+columns_to_drop <- c('Block', 'Description', 'IUCR', 'Location.Description', 
+                     'Beat', 'District', 'Ward', 'Community.Area', 'FBI.Code', 
+                     'X.Coordinate', 'Y.Coordinate', 'Updated.On', 'Latitude', 
+                     'Longitude', 'Location', 'Domestic', 'Year', 'Case.Number')
+filtered_crime_data <- crime_data[ , !(names(crime_data) %in% columns_to_drop)]
+
+head(filtered_crime_data)
+```
+
+# Top crime types
+```{r}
+filtered_crime_data$Primary.Type <- as.character(filtered_crime_data$Primary.Type)
+
+crime_counts <- filtered_crime_data %>%
+  group_by(Primary.Type) %>%
+  summarise(count = n()) %>%
+  arrange(desc(count))
+
+head(crime_counts)
+```
+
+# Clean and filter the data
+```{r}
+cleaned_data <- filtered_crime_data %>%
+  filter(Primary.Type %in% c("THEFT", "BATTERY"), # Pick top two crime types
+         Arrest == "true") %>% 
+  arrange(Date) # Filter only 'THEFT' & 'BATTERY' with true Arrests & sort by the newly formatted Date
+
+head(cleaned_data)
+```
+
+# Transform, and aggregate the data
+```{r}
+aggregated_data <- filtered_crime_data %>%
+  mutate(Date = mdy_hms(Date)) %>%
+  select(-Arrest, -ID) %>%   # Remove 'Arrest' and 'ID' columns
+  mutate(Year = year(Date),  # Extract Year and Month for aggregation
+         Month = month(Date)) %>%
+  group_by(Year, Month) %>% # Group by Year and Month and count number of arrests
+  summarise(Arrest_Count = n(), .groups = "drop") %>%
+  mutate(Date = as.Date(paste(Year, Month, "01", sep = "-"))) %>%   # New Date column assuming 1st of months
+  select(Date, Arrest_Count) %>%
+  arrange(Date)
+
+head(aggregated_data)
+```
+
+# Convert Arrest_Count into a time series object
+```{r}
+crime_ts <- ts(aggregated_data$Arrest_Count, 
+               start = c(2001, 1), end = c(2024, 12),    
+               frequency = 12)  
+
+autoplot(crime_ts) + ggtitle("Monthly Arrest Counts Over Time") + 
+  xlab("Year") + ylab("Number of Arrests")
+```
+
+## Forecast Combination
+
+### Step 1: Data Partitioning: Training and Validation 
+We are going to partition the data: train.ts from Jan 2001 to Dec 2019, and valid.ts is from Jan 2020 to Dec 2024.
+```{r}
+nValid <- 60 # Months in the validation set
+
+# Split into training and validation sets
+train.ts <- window(crime_ts, end = c(2019, 12))  
+valid.ts <- window(crime_ts, start = c(2020, 1), end = c(2024, 12))   
+
+autoplot(train.ts) + 
+  autolayer(valid.ts, series = "Validation", color = "red") +
+  ggtitle("Training vs Validation Data") +
+  xlab("Year") + 
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+### Step 2: Train multiple forecasting models and forecast on validation data
+
+#### Build a Regression model - Model 1
+```{r}
+# Train a regression model with trend, quadratic trend, and seasonality
+crime.lm <- tslm(train.ts ~ trend + I(trend^2) + season)
+
+# Forecast
+crime.lm.forecast <- forecast(crime.lm, h = nValid, level = 0)
+
+# Plot
+autoplot(crime.lm.forecast) + 
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Quadratic Trend + Seasonality Regression Model Forecast") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+#### Build a ETS model - Model 2
+```{r}
+crime.ets <- ets(train.ts, model = "ZZZ")
+
+crime.ets.forecast <- forecast(crime.ets, h = nValid, level = 0)
+
+autoplot(crime.ets.forecast) + 
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("ETS Model Forecast") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+#### Build an auto.arima() model - Model 3
+```{r}
+crime.arima <- auto.arima(train.ts)
+
+crime.arima.forecast <- forecast(crime.arima, h = nValid, level = 0)
+
+autoplot(crime.arima.forecast) + 
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Auto ARIMA Model Forecast") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+#### Build a NN model - Model 4
+We will build a NN model with a few parameters
+```{r}
+# Define neural network parameters
+p <- 11  # Number of previous time steps used for forecast
+P <- 1   # Number of previous seasonal values to use
+size <- 7 # Number of hidden nodes
+repeats <- 20 # Number of iterations/epochs for training
+
+crime.nnetar <- nnetar(train.ts, repeats = repeats, p = p, P = P, size = size)
+
+crime.nnetar.forecast <- forecast(crime.nnetar, h = nValid)
+
+autoplot(crime.nnetar.forecast) +
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Neural Network Model Forecast") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+#### Build a seasonal naive - Model 5
+```{r}
+crime.snaive <- snaive(train.ts, h = nValid, level = 0)
+
+autoplot(crime.snaive) +
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Seasonal Naïve Model Forecast") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+### Step 3: Aggregate multiple forecasts
+
+#### Simple Average
+```{r}
+# Define the number of models
+num.models <- 5
+
+# Compute the simple average of all model forecasts
+crime.comb.simple.avg <- (crime.lm.forecast$mean + crime.ets.forecast$mean + 
+                          crime.arima.forecast$mean + crime.nnetar.forecast$mean + 
+                          crime.snaive$mean) / num.models
+
+autoplot(train.ts) +
+  autolayer(crime.comb.simple.avg, series = "Simple Avg Comb", color = "blue") +
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Simple Average of Forecast Models") +
+  xlab("Year") +
+  ylab("Number of Arrests") +
+  theme_minimal()
+```
+
+#### Trimmed mean 
+```{r}
+# Collect the forecasts in a dataframe
+forecast.vectors.df <- data.frame(cbind(crime.lm.forecast$mean, 
+                                        crime.ets.forecast$mean, 
+                                        crime.arima.forecast$mean, 
+                                        crime.nnetar.forecast$mean, 
+                                        crime.snaive$mean))
+
+# Function to compute trimmed mean for each row separately - Using 20% trimming
+# Since we have 5 models, we trim one highest and one lowest forecast
+forecast.vectors.df$comb.trimmed.avg <- apply(forecast.vectors.df, 1, function(x) mean(x, trim = 0.2))
+
+# Convert the object into a time series object
+crime.comb.trimmed.avg <- ts(forecast.vectors.df$comb.trimmed.avg, start = c(2020, 1), end = c(2024, 12), freq = 12)
+
+autoplot(train.ts) +
+  autolayer(crime.comb.trimmed.avg, series = "Trimmed Avg Comb", color = "blue") +
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Trimmed Mean of Forecast Models") +
+  xlab("Year") +
+  ylab("Number of Crimes") +
+  theme_minimal()
+```
+
+#### Running a regression that best fits the validation data
+
+```{r}
+# Collect the forecasts in a dataframe
+forecast.vectors.df <- data.frame(cbind(crime.lm.forecast$mean, 
+                                        crime.ets.forecast$mean, 
+                                        crime.arima.forecast$mean, 
+                                        crime.nnetar.forecast$mean, 
+                                        crime.snaive$mean))
+
+# Rename columns for clarity
+colnames(forecast.vectors.df) <- c("lm_forecast", "ets_forecast", "arima_forecast", "nnetar_forecast", "snaive_forecast")
+
+# Add validation data as another column
+forecast.vectors.df$valid <- as.numeric(valid.ts)
+
+# Running regression model to find the best combination
+crime.forecasts.lm <- lm(valid ~ lm_forecast + ets_forecast + 
+                           arima_forecast + nnetar_forecast + snaive_forecast, 
+                         data = forecast.vectors.df)
+
+# Summarizing the regression model
+summary(crime.forecasts.lm)
+```
+
+#### Plotting the regression fit 
+
+```{r}
+# Convert the fitted values from regression model into a time series object
+crime.comb.regression <- ts(crime.forecasts.lm$fitted.values, 
+                            start = c(2020, 1), 
+                            end = c(2024, 12), 
+                            freq = 12)
+
+autoplot(train.ts) +
+  autolayer(crime.comb.regression, series = "Regression Fit") +
+  autolayer(valid.ts, series = "Observed") +
+  ggtitle("Crime Rate Forecasting - Regression Fit") +
+  ylab("Crime Rate") +
+  xlab("Year")
+```
+
+### Step 4: Finally, compare the accuracy of all the models - MAPE
+```{r}
+# Compute MAPE for all models
+c(
+  LM = accuracy(crime.lm.forecast, valid.ts)["Test set", "MAPE"], 
+  ETS = accuracy(crime.ets.forecast, valid.ts)["Test set", "MAPE"],
+  ARIMA = accuracy(crime.arima.forecast, valid.ts)["Test set", "MAPE"],
+  NNAR = accuracy(crime.nnetar.forecast, valid.ts)["Test set", "MAPE"],
+  SNAIVE = accuracy(crime.snaive, valid.ts)["Test set", "MAPE"],
+  comb.simple.avg = accuracy(crime.comb.simple.avg, valid.ts)["Test set", "MAPE"], 
+  comb.reg = accuracy(crime.comb.regression, valid.ts)["Test set", "MAPE"]
+)
+```
+
+
