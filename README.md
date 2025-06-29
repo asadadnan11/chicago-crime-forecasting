@@ -1,10 +1,10 @@
-# 📊 Chicago Crime Forecasting Project
+# Chicago Crime Forecasting Project
 
 This project develops a comprehensive crime forecasting framework for Chicago using advanced time series methodologies applied to 23 years of historical data (2001–2023) from the [Chicago Data Portal](https://catalog.data.gov/dataset/crimes-2001-to-present).
 
 ---
 
-## 📚 Project Overview
+## Project Overview
 - **Objective:** Develop and evaluate multiple time series forecasting models using ensemble techniques to improve crime prediction accuracy and inform strategic planning.
 - **Dataset:** Comprehensive analysis of 7M+ crime incidents from Chicago (2001–2023), with deep-dive focus on 1.75M theft and 1.51M battery cases representing Chicago's highest-volume offenses
 - **Methodological Focus:** Multi-model ensemble approach combining traditional time series analysis with advanced neural network architectures
@@ -12,7 +12,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## 📈 Advanced Modeling Framework
+## Advanced Modeling Framework
 1. **Regression Model** - Quadratic trend with seasonal decomposition for long-term pattern detection
 2. **Exponential Smoothing (ETS)** - Adaptive weighting for recent trend prioritization
 3. **Auto ARIMA** - Automated parameter selection with seasonal differencing
@@ -25,7 +25,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## ⚡️ Key Findings
+## Key Findings
 - **Dramatic 50% decline** in theft and battery arrests over 23-year period, indicating significant long-term crime reduction trends
 - **COVID-19 anomaly detection** - Models successfully identified and quantified pandemic-related crime pattern disruptions
 - **Robust seasonal intelligence** - Consistent 15-20% crime spikes during summer months across all model validations
@@ -35,7 +35,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## 🎯 Policy Implications & Recommendations
+## Policy Implications & Recommendations
 - **Tactical Resource Deployment:** Implement data-driven 25% patrol increase during identified peak periods (June–August), with targeted allocation to high-probability zones
 - **Predictive Budget Optimization:** Integrate ETS/ARIMA forecasting models into quarterly resource allocation for community policing and intervention programs
 - **Adaptive Crime Prevention:** Deploy monthly regression-combination forecasts for real-time strategy pivots and proactive crime prevention initiatives
@@ -44,7 +44,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## 📂 File Structure
+## File Structure
 
 ```
 /chicago-crime-forecasting 
@@ -57,7 +57,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## ⚠️ Limitations
+## Limitations
 - **Arrest-only focus** may underrepresent total crime incidents (not all crimes result in arrests)
 - **Excluded external factors** such as socioeconomic shifts, weather conditions, and policy changes that influence crime patterns
 - **Geospatial elements** were excluded in favor of pure time-series approach
@@ -65,7 +65,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## 🔍 Future Research Directions
+## Future Research Directions
 - **Spatial Analysis:** Incorporate geographic variables for neighborhood-level forecasting and targeted resource allocation
 - **External Variables:** Include socioeconomic indicators, weather data, and demographic factors to enhance model performance  
 - **Advanced Methods:** Explore deep learning approaches and additional ensemble techniques for improved pattern detection
@@ -74,7 +74,7 @@ This project develops a comprehensive crime forecasting framework for Chicago us
 
 ---
 
-## 👨‍💻 Authors
+## Authors
 - **Asad Adnan**
 - **Muhammad Ahmad** 
 - **Brian Murphy**
