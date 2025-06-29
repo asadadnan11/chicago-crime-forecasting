@@ -89,8 +89,17 @@ crime_ts <- ts(aggregated_data$Arrest_Count,
                start = c(2001, 1), end = c(2024, 12),    
                frequency = 12)  
 
-autoplot(crime_ts) + ggtitle("Monthly Arrest Counts Over Time") + 
-  xlab("Year") + ylab("Number of Arrests")
+# Create and save the main time series plot
+p1 <- autoplot(crime_ts) + 
+  ggtitle("Monthly Arrest Counts Over Time") + 
+  xlab("Year") + ylab("Number of Arrests") +
+  theme_minimal()
+
+# Display the plot
+p1
+
+# Save the plot
+ggsave("crime_timeseries.png", plot = p1, width = 10, height = 6, dpi = 300)
 ```
 
 ## Forecast Combination
@@ -104,12 +113,19 @@ nValid <- 60 # Months in the validation set
 train.ts <- window(crime_ts, end = c(2019, 12))  
 valid.ts <- window(crime_ts, start = c(2020, 1), end = c(2024, 12))   
 
-autoplot(train.ts) + 
+# Create and save the training vs validation plot
+p2 <- autoplot(train.ts) + 
   autolayer(valid.ts, series = "Validation", color = "red") +
   ggtitle("Training vs Validation Data") +
   xlab("Year") + 
   ylab("Number of Arrests") +
   theme_minimal()
+
+# Display the plot
+p2
+
+# Save the plot
+ggsave("train_validation_split.png", plot = p2, width = 10, height = 6, dpi = 300)
 ```
 
 ### Step 2: Train multiple forecasting models and forecast on validation data
@@ -137,12 +153,19 @@ crime.ets <- ets(train.ts, model = "ZZZ")
 
 crime.ets.forecast <- forecast(crime.ets, h = nValid, level = 0)
 
-autoplot(crime.ets.forecast) + 
+# Create and save the ETS model forecast plot
+p3 <- autoplot(crime.ets.forecast) + 
   autolayer(valid.ts, series = "Observed", color = "red") +
   ggtitle("ETS Model Forecast") +
   xlab("Year") +
   ylab("Number of Arrests") +
   theme_minimal()
+
+# Display the plot  
+p3
+
+# Save the plot
+ggsave("ets_forecast.png", plot = p3, width = 10, height = 6, dpi = 300)
 ```
 
 #### Build an auto.arima() model - Model 3
@@ -272,12 +295,20 @@ crime.comb.regression <- ts(crime.forecasts.lm$fitted.values,
                             end = c(2024, 12), 
                             freq = 12)
 
-autoplot(train.ts) +
-  autolayer(crime.comb.regression, series = "Regression Fit") +
-  autolayer(valid.ts, series = "Observed") +
-  ggtitle("Crime Rate Forecasting - Regression Fit") +
-  ylab("Crime Rate") +
-  xlab("Year")
+# Create and save the regression combination model plot
+p4 <- autoplot(train.ts) +
+  autolayer(crime.comb.regression, series = "Regression Fit", color = "blue") +
+  autolayer(valid.ts, series = "Observed", color = "red") +
+  ggtitle("Crime Rate Forecasting - Best Regression Combination Model") +
+  ylab("Number of Arrests") +
+  xlab("Year") +
+  theme_minimal()
+
+# Display the plot
+p4
+
+# Save the plot
+ggsave("regression_combination.png", plot = p4, width = 10, height = 6, dpi = 300)
 ```
 
 ### Step 4: Finally, compare the accuracy of all the models - MAPE
